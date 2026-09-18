@@ -317,24 +317,23 @@ input[type=range]{width:100%; accent-color:var(--brand)}
 <div class="scrim" id="scrim" hidden></div>
 
 <!-- SETUP -->
-<div class="sheet" id="setupSheet" hidden role="dialog" aria-label="Choose how to read">
+<div class="sheet" id="setupSheet" hidden role="dialog" aria-label="Set up reading">
   <div class="grab"></div>
-  <h3>This version needs a key</h3>
-  <p class="sub">There is a free version that does not. It runs Claude through the Claude account you already have — no key, no billing, nothing to sign up for. You pick a photo from your camera roll instead of using the live camera; everything else is identical.</p>
-  <a class="btn wide primary" id="freeLink" style="display:block; text-align:center; text-decoration:none"
-     href="https://claude.ai/artifact/LB3xdgUDEAhtsjGpxCdUjk" target="_blank" rel="noopener">Open the free version</a>
-  <p class="tiny" style="margin:10px 0 0">Add that one to your home screen and use it instead of this.</p>
-
-  <span class="seg">Or stay here</span>
-  <p class="tiny" style="margin:0 0 12px">This build keeps the live viewfinder, which the free one cannot have. That is the only thing an API key buys you.</p>
+  <h3>One free key and you're done</h3>
+  <p class="sub">A phone photo of a textbook has a shadow across it, a curved page and decorated first letters. On-device OCR mangles all three — that is where garbled words come from. Google's Gemini reads the photo properly, and its free tier needs <b>no credit card and no payment</b>.</p>
+  <ol class="tiny" style="margin:0 0 14px; padding-left:20px; line-height:1.9">
+    <li>Open <b>aistudio.google.com/apikey</b> and sign in with any Google account</li>
+    <li>Tap <b>Create API key</b></li>
+    <li>Copy it and paste it below</li>
+  </ol>
   <div class="field">
-    <label for="setupKey">Anthropic API key</label>
-    <input type="password" id="setupKey" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
-    <button class="btn wide" id="setupSave" style="margin-top:10px">Save key</button>
+    <label for="setupKey">Google AI Studio key</label>
+    <input type="password" id="setupKey" placeholder="AIza..." autocomplete="off" spellcheck="false">
+    <button class="btn wide primary" id="setupSave" style="margin-top:10px">Save and read</button>
     <div class="msg" id="setupMsg"></div>
-    <div class="hint">From console.anthropic.com → API keys. Pay-as-you-go and separate from a Claude subscription.</div>
+    <div class="hint">Stored only in this browser. Heads up: on Google's <i>free</i> tier they may use what you send to improve their products — fine for a textbook page, worth knowing before you photograph anything private.</div>
   </div>
-  <button class="btn wide" id="setupSkip">Use offline reading instead</button>
+  <button class="btn wide" id="setupSkip">Skip — use offline reading</button>
   <p class="tiny" style="margin-top:9px">Offline reading needs nothing at all, but gets words wrong on a shadowed or curved page.</p>
 </div>
 
@@ -346,16 +345,18 @@ input[type=range]{width:100%; accent-color:var(--brand)}
   <span class="seg">How it reads the page</span>
   <div class="field">
     <div class="chips" id="engineChips">
+      <button class="chip" data-engine="gemini" aria-pressed="false">Gemini · free</button>
       <button class="chip" data-engine="claude" aria-pressed="false">Claude</button>
-      <button class="chip" data-engine="ocr" aria-pressed="false">Offline OCR</button>
+      <button class="chip" data-engine="ocr" aria-pressed="false">Offline</button>
     </div>
     <div class="hint" id="engineHint"></div>
   </div>
   <div class="field" id="keyField">
-    <label for="keyIn">Anthropic API key</label>
-    <input type="password" id="keyIn" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+    <label for="keyIn" id="keyLabel">API key</label>
+    <input type="password" id="keyIn" autocomplete="off" spellcheck="false">
     <button class="btn wide primary" id="keySave" style="margin-top:10px">Save key</button>
     <div class="msg" id="keyMsg"></div>
+    <div class="hint" id="keyHint"></div>
   </div>
 
   <span class="seg">Voice</span>
@@ -425,11 +426,12 @@ input[type=range]{width:100%; accent-color:var(--brand)}
 var LS={get:function(k,d){try{var v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
         set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
 var P = Object.assign({
-  engine:"claude", mode:"words", rate:1, voice:"", karaoke:true,
+  engine:"gemini", mode:"words", rate:1, voice:"", karaoke:true,
   font:"atkinson", rt:"paper", size:20, lh:1.9, ls:0.01, ws:0.06, wid:34, focus:false,
-  model:"", seen:false
+  model:"", gmodel:"", seen:false
 }, LS.get("lect.p", {}));
-var KEY = LS.get("lect.key","");
+var KEY  = LS.get("lect.key","");      // Anthropic
+var GKEY = LS.get("lect.gkey","");     // Google AI Studio
 var LIB = LS.get("lect.lib",[]);
 var LAST = LS.get("lect.last",null);
 function saveP(){ LS.set("lect.p",P); }
@@ -561,19 +563,17 @@ function roughCard(){
   var c=document.createElement("div"); c.className="card alert";
   var b=document.createElement("b"); b.textContent="This read is unreliable";
   var p=document.createElement("p");
-  p.textContent = KEY
-    ? "Offline reading is switched on. Turn Claude back on in Settings and it will read this page properly."
-    : "This was read on your device, and on a shadowed or curved page that gets words wrong. The free version reads the photo with Claude and handles it — no key needed.";
+  var have = keyFor("gemini") ? "gemini" : keyFor("claude") ? "claude" : null;
+  p.textContent = have
+    ? "Offline reading is switched on. Turn the good engine back on and it will read this page properly."
+    : "This was read on your device, and on a shadowed or curved page that gets words wrong. A free Google AI Studio key fixes it — no card needed.";
   var row=document.createElement("div"); row.className="row2";
-  var fix;
-  if(KEY){
-    fix=document.createElement("button"); fix.className="btn primary"; fix.textContent="Switch to Claude";
-    fix.onclick=function(){ P.engine="claude"; saveP(); syncEngine(); toCamera(); };
-  } else {
-    fix=document.createElement("a"); fix.className="btn primary"; fix.textContent="Open the free version";
-    fix.href="https://claude.ai/artifact/LB3xdgUDEAhtsjGpxCdUjk";
-    fix.target="_blank"; fix.rel="noopener"; fix.style.textDecoration="none";
-  }
+  var fix=document.createElement("button"); fix.className="btn primary";
+  fix.textContent = have ? "Use the good engine" : "Set up the free reader";
+  fix.onclick=function(){
+    if(have){ P.engine=have; saveP(); syncEngine(); toCamera(); }
+    else sheet($("setupSheet"),true);
+  };
   var again=document.createElement("button"); again.className="btn"; again.textContent="Take it again";
   again.onclick=toCamera;
   row.append(fix,again);
@@ -969,6 +969,71 @@ async function claudeRead(canvas, signal){
   return JSON.parse(m[0]);
 }
 
+/* ═════════════ Gemini (free tier — no card) ═════════════ */
+var GSHAPE = {
+  type:"OBJECT",
+  properties:{
+    title:{type:"STRING"},
+    era:{type:"STRING"},
+    paragraphs:{type:"ARRAY", items:{type:"OBJECT", properties:{
+      heading:{type:"STRING"}, text:{type:"STRING"}, teacher:{type:"STRING"}
+    }, required:["text","teacher"]}},
+    terms:{type:"ARRAY", items:{type:"OBJECT", properties:{
+      term:{type:"STRING"}, gloss:{type:"STRING"}
+    }, required:["term","gloss"]}}
+  },
+  required:["title","paragraphs"]
+};
+var GBASE = "https://generativelanguage.googleapis.com/v1beta";
+
+// Newer flash models keep appearing; ask the account what it can use rather
+// than hardcoding a name that goes stale.
+function gRank(n){
+  var m = n.match(/gemini-(\d+)(?:\.(\d+))?/);
+  var v = m ? (+m[1])*100 + (+(m[2]||0)) : 0;
+  if(/lite/.test(n)) v -= 30;              // lite is weaker at reading photos
+  if(/preview|exp/.test(n)) v -= 15;
+  return v;
+}
+async function gPickModel(key){
+  try{
+    var r = await fetch(GBASE + "/models?key=" + encodeURIComponent(key));
+    if(!r.ok) return null;
+    var j = await r.json();
+    var names = (j.models||[])
+      .filter(function(m){ return (m.supportedGenerationMethods||[]).indexOf("generateContent")>=0; })
+      .map(function(m){ return String(m.name||"").replace(/^models\//,""); })
+      .filter(function(n){ return /flash/.test(n) && !/embed|aqa|image|tts|audio|live/.test(n); });
+    if(!names.length) return null;
+    names.sort(function(a,b){ return gRank(b)-gRank(a); });
+    return names[0];
+  }catch(e){ return null; }
+}
+async function geminiRead(canvas, signal){
+  var model = P.gmodel || (await gPickModel(GKEY));
+  if(!model) throw new Error("Couldn't reach Google with that key. Check it in Settings.");
+  P.gmodel = model; saveP();
+  var res = await fetch(GBASE + "/models/" + model + ":generateContent?key=" + encodeURIComponent(GKEY), {
+    method:"POST", signal:signal, headers:{"content-type":"application/json"},
+    body: JSON.stringify({
+      contents:[{parts:[
+        {inline_data:{mime_type:"image/jpeg", data: b64(canvas)}},
+        {text: PROMPT}
+      ]}],
+      generationConfig:{ temperature:0.15, responseMimeType:"application/json", responseSchema:GSHAPE }
+    })
+  });
+  var j = await res.json().catch(function(){ return null; });
+  if(!res.ok){
+    var e = new Error((j&&j.error&&j.error.message)||("HTTP "+res.status)); e.status=res.status; throw e;
+  }
+  var cand = (j.candidates||[])[0];
+  if(!cand) throw new Error("Gemini sent nothing back. Tap read again.");
+  var txt = ((cand.content&&cand.content.parts)||[]).map(function(x){ return x.text||""; }).join("");
+  if(!txt) throw new Error("Gemini sent nothing back. Tap read again.");
+  return JSON.parse(txt);
+}
+
 /* ═════════════ busy ═════════════ */
 var aborter=null;
 function setBusy(on,title,note){
@@ -992,24 +1057,27 @@ function toast(msg){
 
 /* ═════════════ the shutter ═════════════ */
 $("readBtn").onclick=async function(){
+  if(P.engine==="gemini" && !GKEY){ sheet($("setupSheet"),true); return; }
   if(P.engine==="claude" && !KEY){ sheet($("setupSheet"),true); return; }
   var c=cropCanvas();
   if(!c){ $("gateWhy").textContent="Turn on the camera or pick a photo first."; return; }
   stopSpeech();
   aborter=new AbortController();
-  var useClaude = P.engine==="claude" && KEY;
-  setBusy(true, useClaude?"Reading the page…":"Reading offline…",
-          useClaude?"Claude is transcribing it and writing the teacher version."
-                   :"On-device — this is the rough one.");
+  var smart = (P.engine==="gemini" && GKEY) || (P.engine==="claude" && KEY);
+  setBusy(true, smart?"Reading the page…":"Reading offline…",
+          smart?"Transcribing it and writing the teacher version."
+               :"On-device — this is the rough one.");
   progress(0.12);
   try{
     var d;
-    if(useClaude){
-      var data=await claudeRead(c, aborter.signal);
+    if(smart){
+      var data = P.engine==="gemini"
+        ? await geminiRead(c, aborter.signal)
+        : await claudeRead(c, aborter.signal);
       progress(0.95);
       if(!data||data.error||!data.paragraphs||!data.paragraphs.length)
         throw new Error((data&&data.error)||"No readable text in that box.");
-      d={id:"d"+Date.now(), engine:"claude", rough:false, hasTeacher:true,
+      d={id:"d"+Date.now(), engine:P.engine, rough:false, hasTeacher:true,
          title:String(data.title||"Captured passage"), era:String(data.era||""), savedAt:Date.now(),
          chunks:(data.paragraphs||[]).slice(0,14).map(function(s){
            return {heading:String(s.heading||""), text:String(s.text||""), teacher:String(s.teacher||"")};
@@ -1033,8 +1101,8 @@ $("readBtn").onclick=async function(){
     setBusy(false);
     if(e&&e.name==="AbortError") return;
     var msg=e&&e.message||"Something went wrong.";
-    if(e&&e.status===401) msg="That API key was rejected. Check it in Settings.";
-    if(e&&e.status===429) msg="Anthropic is rate-limiting — wait a moment and tap again.";
+    if(e&&(e.status===401||e.status===403)) msg="That API key was rejected. Check it in Settings.";
+    if(e&&e.status===429) msg="You've hit the free-tier rate limit. Wait a minute and tap read again.";
     toast(msg);
   }finally{ aborter=null; }
 };
@@ -1076,47 +1144,82 @@ function renderLib(){
   });
 }
 
+var ENGINES = {
+  gemini:{
+    label:"Google AI Studio key", placeholder:"AIza...",
+    hint:"Free tier: no credit card, no payment. Get one at aistudio.google.com/apikey. On the free tier Google may use what you send to improve their products.",
+    blurb:"Reads the photo with Google's Gemini. Copes with shadows, curved pages and decorated letters, and gives you the exact words plus a teacher explanation. Free — no card needed."
+  },
+  claude:{
+    label:"Anthropic API key", placeholder:"sk-ant-...",
+    hint:"From console.anthropic.com → API keys. Pay-as-you-go, separate from a Claude subscription — roughly a third of a cent a page.",
+    blurb:"Reads the photo with Claude. Same quality of result, but the Anthropic API is paid — you put credit on it first."
+  },
+  ocr:{
+    label:"", placeholder:"", hint:"",
+    blurb:"Runs entirely on your device, free and offline — but it gets words wrong on shadowed or curved pages, and can only give its best guess at the text."
+  }
+};
+function keyFor(engine){ return engine==="gemini" ? GKEY : engine==="claude" ? KEY : ""; }
+
 function syncEngine(){
   [].forEach.call($("engineChips").children,function(b){
     b.setAttribute("aria-pressed", String(b.dataset.engine===P.engine));
   });
-  $("keyField").hidden = P.engine!=="claude";
-  $("engineHint").textContent = P.engine==="claude"
-    ? "Claude reads the photo itself. It copes with shadows, curved pages and decorated letters, and gives you the exact words plus a teacher explanation. Well under a cent a page."
-    : "Runs entirely on your device, free and offline — but it gets words wrong on shadowed or curved pages, and can only give its best guess at the text.";
+  var cfg = ENGINES[P.engine] || ENGINES.gemini;
+  $("engineHint").textContent = cfg.blurb;
+  $("keyField").hidden = (P.engine==="ocr");
+  if(P.engine!=="ocr"){
+    $("keyLabel").textContent = cfg.label;
+    $("keyIn").placeholder = cfg.placeholder;
+    $("keyHint").textContent = cfg.hint;
+    var k = keyFor(P.engine);
+    $("keyIn").value = k ? "••••••••••••••••" : "";
+    $("keyMsg").textContent = k ? "Key saved." : "";
+    $("keyMsg").className = "msg ok";
+  }
+  var live = !!keyFor(P.engine);
   $("engineTag").hidden=false;
-  var live = (P.engine==="claude" && KEY);
-  $("engineTag").textContent = live ? "Claude" : "Offline";
+  $("engineTag").textContent = P.engine==="gemini" ? (live?"Gemini":"Offline")
+                             : P.engine==="claude" ? (live?"Claude":"Offline") : "Offline";
   $("engineTag").classList.toggle("offline", !live);
-  $("keyIn").value = KEY ? "••••••••••••••••" : "";
-  $("keyMsg").textContent = KEY ? "Key saved." : "";
-  $("keyMsg").className = "msg ok";
 }
 [].forEach.call($("engineChips").children,function(b){
   b.onclick=function(){
     P.engine=b.dataset.engine; saveP(); syncEngine();
-    if(P.engine==="claude" && !KEY) $("keyIn").focus();
+    if(P.engine!=="ocr" && !keyFor(P.engine)) $("keyIn").focus();
   };
 });
 
-async function saveKey(inputId, msgId, then){
+// Validate against the provider before trusting it, so a typo fails here
+// rather than on a photo.
+async function checkKey(engine, v){
+  if(engine==="gemini"){
+    var m = await gPickModel(v);
+    return m ? {ok:true, model:m, note:"Working — using "+m+"."}
+             : {ok:false, note:"That key didn't check out. It should start with AIza and come from aistudio.google.com/apikey."};
+  }
+  var save=KEY; KEY=v;
+  var mm = await pickModel();
+  KEY=save;
+  return mm ? {ok:true, model:mm, note:"Working — using "+mm+"."}
+            : {ok:false, note:"That key didn't check out. It should start with sk-ant- and come from console.anthropic.com."};
+}
+async function saveKey(inputId, msgId, engine, then){
   var v=$(inputId).value.trim();
   if(!v || v.charAt(0)==="•"){ $(msgId).textContent="Paste your key first."; $(msgId).className="msg bad"; return; }
-  KEY=v; LS.set("lect.key",KEY);
   $(msgId).textContent="Checking…"; $(msgId).className="msg";
-  var m=await pickModel();
-  if(m){
-    P.model=m; P.engine="claude"; saveP();
-    $(msgId).textContent="Working — using "+m+"."; $(msgId).className="msg ok";
-    $(inputId).value="••••••••••••••••"; syncEngine(); if(then) then();
-  } else {
-    KEY=""; LS.set("lect.key","");
-    $(msgId).textContent="That key didn't check out. It should start with sk-ant- and come from console.anthropic.com.";
-    $(msgId).className="msg bad";
-  }
+  var r = await checkKey(engine, v);
+  if(!r.ok){ $(msgId).textContent=r.note; $(msgId).className="msg bad"; return; }
+  if(engine==="gemini"){ GKEY=v; LS.set("lect.gkey",GKEY); P.gmodel=r.model||""; }
+  else { KEY=v; LS.set("lect.key",KEY); P.model=r.model||""; }
+  P.engine=engine; P.seen=true; saveP();
+  $(msgId).textContent=r.note; $(msgId).className="msg ok";
+  $(inputId).value="••••••••••••••••";
+  syncEngine(); if(then) then();
 }
-$("keySave").onclick=function(){ saveKey("keyIn","keyMsg"); };
-$("setupSave").onclick=function(){ saveKey("setupKey","setupMsg",function(){ sheet($("setupSheet"),false); }); };
+$("keySave").onclick=function(){ saveKey("keyIn","keyMsg", P.engine); };
+$("setupSave").onclick=function(){ saveKey("setupKey","setupMsg","gemini",function(){ sheet($("setupSheet"),false); }); };
 $("setupSkip").onclick=function(){ P.engine="ocr"; P.seen=true; saveP(); syncEngine(); sheet($("setupSheet"),false); };
 
 function chipKey(id){ return id==="themeChips" ? "rt" : "font"; }
@@ -1170,7 +1273,7 @@ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
   $("gateBtn").hidden=true;
 } else if(LS.get("lect.camok",false)){ tryStart(); }
 
-if(!KEY && !P.seen){
+if(!GKEY && !KEY && !P.seen){
   setTimeout(function(){ sheet($("setupSheet"),true); P.seen=true; saveP(); }, 700);
 }
 if("serviceWorker" in navigator){

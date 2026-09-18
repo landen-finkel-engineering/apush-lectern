@@ -8,10 +8,15 @@ Built for someone who finds reading hard and still has to get through the chapte
 
 ## How it reads the page
 
-**Claude (default).** The crop goes to Anthropic's API, which transcribes it exactly. A phone photo
-of a textbook has a shadow across it, a curved page near the spine, and decorated drop caps —
+**Gemini (default, free).** The crop goes to Google's Gemini, which transcribes it exactly. A phone
+photo of a textbook has a shadow across it, a curved page near the spine, and decorated drop caps —
 on-device OCR mangles all three, and a reader who can't easily check the text against the page has
-no way to catch the errors. Needs your own API key; costs well under a cent a page.
+no way to catch the errors. Google AI Studio's free tier needs **no credit card**: grab a key at
+aistudio.google.com/apikey and paste it in. The app asks the API which models the key can use and
+picks the newest non-lite Flash itself, so it doesn't go stale. Note that on Google's free tier they
+may use what you send to improve their products.
+
+**Claude (optional).** Same job via Anthropic's API. Paid — you put credit on it first.
 
 **Offline OCR (fallback).** Tesseract with Sauvola local adaptive thresholding. Free, works with no
 key and no internet. Measured at ~97% character accuracy on a clean crop, but it still gets words
