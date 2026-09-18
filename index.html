@@ -317,19 +317,25 @@ input[type=range]{width:100%; accent-color:var(--brand)}
 <div class="scrim" id="scrim" hidden></div>
 
 <!-- SETUP -->
-<div class="sheet" id="setupSheet" hidden role="dialog" aria-label="Set up reading">
+<div class="sheet" id="setupSheet" hidden role="dialog" aria-label="Choose how to read">
   <div class="grab"></div>
-  <h3>One thing first</h3>
-  <p class="sub">A phone photo of a textbook has a shadow across it, a curved page and decorated letters. On-device OCR mangles all three — that is where garbled words come from. Claude reads the photo itself and gets it right. That needs your own Anthropic API key.</p>
+  <h3>This version needs a key</h3>
+  <p class="sub">There is a free version that does not. It runs Claude through the Claude account you already have — no key, no billing, nothing to sign up for. You pick a photo from your camera roll instead of using the live camera; everything else is identical.</p>
+  <a class="btn wide primary" id="freeLink" style="display:block; text-align:center; text-decoration:none"
+     href="https://claude.ai/artifact/LB3xdgUDEAhtsjGpxCdUjk" target="_blank" rel="noopener">Open the free version</a>
+  <p class="tiny" style="margin:10px 0 0">Add that one to your home screen and use it instead of this.</p>
+
+  <span class="seg">Or stay here</span>
+  <p class="tiny" style="margin:0 0 12px">This build keeps the live viewfinder, which the free one cannot have. That is the only thing an API key buys you.</p>
   <div class="field">
     <label for="setupKey">Anthropic API key</label>
     <input type="password" id="setupKey" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
-    <button class="btn wide primary" id="setupSave" style="margin-top:10px">Save and read</button>
+    <button class="btn wide" id="setupSave" style="margin-top:10px">Save key</button>
     <div class="msg" id="setupMsg"></div>
-    <div class="hint">Get one at <b>console.anthropic.com → API keys</b>. It is stored only in this browser and sent only to Anthropic. A page costs well under a cent.</div>
+    <div class="hint">From console.anthropic.com → API keys. Pay-as-you-go and separate from a Claude subscription.</div>
   </div>
-  <button class="btn wide" id="setupSkip">Use offline reading for now</button>
-  <p class="tiny" style="margin-top:9px">Offline reading needs no key and no internet, but on a page like yours it will get words wrong.</p>
+  <button class="btn wide" id="setupSkip">Use offline reading instead</button>
+  <p class="tiny" style="margin-top:9px">Offline reading needs nothing at all, but gets words wrong on a shadowed or curved page.</p>
 </div>
 
 <!-- SETTINGS -->
@@ -557,11 +563,17 @@ function roughCard(){
   var p=document.createElement("p");
   p.textContent = KEY
     ? "Offline reading is switched on. Turn Claude back on in Settings and it will read this page properly."
-    : "This was read on your device, and on a shadowed or curved page that gets words wrong. Claude reads the photo itself and handles it.";
+    : "This was read on your device, and on a shadowed or curved page that gets words wrong. The free version reads the photo with Claude and handles it — no key needed.";
   var row=document.createElement("div"); row.className="row2";
-  var fix=document.createElement("button"); fix.className="btn primary";
-  fix.textContent = KEY ? "Switch to Claude" : "Set up Claude";
-  fix.onclick=function(){ if(KEY){ P.engine="claude"; saveP(); syncEngine(); toCamera(); } else sheet($("setupSheet"),true); };
+  var fix;
+  if(KEY){
+    fix=document.createElement("button"); fix.className="btn primary"; fix.textContent="Switch to Claude";
+    fix.onclick=function(){ P.engine="claude"; saveP(); syncEngine(); toCamera(); };
+  } else {
+    fix=document.createElement("a"); fix.className="btn primary"; fix.textContent="Open the free version";
+    fix.href="https://claude.ai/artifact/LB3xdgUDEAhtsjGpxCdUjk";
+    fix.target="_blank"; fix.rel="noopener"; fix.style.textDecoration="none";
+  }
   var again=document.createElement("button"); again.className="btn"; again.textContent="Take it again";
   again.onclick=toCamera;
   row.append(fix,again);
